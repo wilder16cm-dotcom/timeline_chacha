@@ -13,17 +13,17 @@ function App() {
   const [anexos, setAnexos] = useState([])
 
   useEffect(() => {
-    fetch(`[https://timeline-chacha.onrender.com](https://timeline-chacha.onrender.com)/filtros?componente=${componente}`)
+    fetch(`https://timeline-chacha.onrender.com/filtros?componente=${componente}`)
       .then(res => res.json())
       .then(data => setFiltrosOpciones(data))
       
-    fetch('[https://timeline-chacha.onrender.com](https://timeline-chacha.onrender.com)/links')
+    fetch('https://timeline-chacha.onrender.com/links')
       .then(res => res.json())
       .then(data => setLinks(data))
   }, [componente])
 
   useEffect(() => {
-    const url = new URL('[https://timeline-chacha.onrender.com](https://timeline-chacha.onrender.com)/cartas');
+    const url = new URL('https://timeline-chacha.onrender.com/cartas');
     if (componente && componente !== 'Todos') url.searchParams.append('componente', componente);
     if (entregable && entregable !== 'Todos') url.searchParams.append('entregable', entregable);
     if (busqueda) url.searchParams.append('busqueda', busqueda);

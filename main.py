@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
 from typing import Optional
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 # 1. Cargar variables de entorno ocultas
 load_dotenv()
@@ -15,6 +16,14 @@ engine = create_engine(DB_URL)
 
 # 3. Inicializar la app web
 app = FastAPI(title="API CHACHA")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # 4. Permisos CORS para React (Vite)
 app.add_middleware(

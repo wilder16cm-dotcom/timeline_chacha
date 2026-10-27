@@ -91,6 +91,12 @@ function App() {
     setAnexos(matchAnexos);
   };
 
+  const handleDescargarPDF = () => {
+    // Apuntamos al backend para que nos genere el PDF
+    const url = `https://timeline-chacha.onrender.com/reporte-pdf?componente=${encodeURIComponent(componente)}&entregable=${encodeURIComponent(entregable)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', backgroundColor: '#F3F4F6', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
@@ -100,13 +106,21 @@ function App() {
           CHACHAPOYAS <span style={{ color: '#94A3B8', fontSize: '0.9rem', fontWeight: '400' }}>/ Control Documentario</span>
         </h2>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <input type="text" placeholder="Búsqueda por asunto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={{ width: '220px', padding: '6px 12px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0F172A', color: 'white', outline: 'none', fontSize: '0.85rem' }} />
-            <select value={componente} onChange={(e) => { setComponente(e.target.value); setEntregable('Todos'); }} style={{ width: '160px', padding: '6px 12px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0F172A', color: 'white', outline: 'none', fontSize: '0.85rem' }}>
-              {filtrosOpciones.componentes?.map(comp => <option key={comp} value={comp}>{comp}</option>)}
-            </select>
-            <select value={entregable} onChange={(e) => setEntregable(e.target.value)} style={{ width: '160px', padding: '6px 12px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0F172A', color: 'white', outline: 'none', fontSize: '0.85rem' }}>
-              {filtrosOpciones.entregables?.map(ent => <option key={ent} value={ent}>{ent}</option>)}
-            </select>
+          <input type="text" placeholder="Búsqueda por asunto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={{ width: '220px', padding: '6px 12px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0F172A', color: 'white', outline: 'none', fontSize: '0.85rem' }} />
+          <select value={componente} onChange={(e) => { setComponente(e.target.value); setEntregable('Todos'); }} style={{ width: '160px', padding: '6px 12px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0F172A', color: 'white', outline: 'none', fontSize: '0.85rem' }}>
+            {filtrosOpciones.componentes?.map(comp => <option key={comp} value={comp}>{comp}</option>)}
+          </select>
+          <select value={entregable} onChange={(e) => setEntregable(e.target.value)} style={{ width: '160px', padding: '6px 12px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0F172A', color: 'white', outline: 'none', fontSize: '0.85rem' }}>
+            {filtrosOpciones.entregables?.map(ent => <option key={ent} value={ent}>{ent}</option>)}
+          </select>
+          <button 
+            onClick={handleDescargarPDF}
+            style={{ backgroundColor: '#2563EB', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', transition: 'background-color 0.2s' }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1D4ED8'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563EB'}
+          >
+            📄 Generar PDF
+          </button>
         </div>
       </div>
 
@@ -128,40 +142,39 @@ function App() {
           <div style={{ position: 'absolute', top: '40px', left: 0, right: 0, height: '2px', backgroundColor: '#E5E7EB' }}></div>
           
           {nodosUnicos.map((nodo, index) => {
-             const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
-             const tooltipText = nodo.docs.join('\n');
-             
-             return (
-               <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
-                 
-                 {/* ENVIADAS (Triángulo apuntando abajo) */}
-                 {nodo.hasEnv && (
-                   <div style={{ position: 'absolute', bottom: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                     <div style={{ fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '600', marginBottom: '2px', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
-                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '8px solid #1E3A8A', cursor: 'pointer' }}></div>
-                   </div>
-                 )}
+            const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
+            const tooltipText = nodo.docs.join('\n');
+            
+            return (
+              <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
+                
+                {/* ENVIADAS (Triángulo apuntando abajo) */}
+                {nodo.hasEnv && (
+                  <div style={{ position: 'absolute', bottom: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '600', marginBottom: '2px', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
+                    <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '8px solid #1E3A8A', cursor: 'pointer' }}></div>
+                  </div>
+                )}
 
-                 {/* HITOS (Rombo central) */}
-                 {nodo.hasHito && (
-                   <div style={{ position: 'absolute', top: '-6px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
-                     <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white' }}></div>
-                     {(!nodo.hasEnv && !nodo.hasRec) && <div style={{ marginTop: '14px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '700', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>}
-                   </div>
-                 )}
+                {/* HITOS (Rombo central) */}
+                {nodo.hasHito && (
+                  <div style={{ position: 'absolute', top: '-6px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
+                    <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white' }}></div>
+                    {(!nodo.hasEnv && !nodo.hasRec) && <div style={{ marginTop: '14px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '700', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>}
+                  </div>
+                )}
 
-                 {/* RECIBIDAS (Triángulo apuntando arriba) */}
-                 {nodo.hasRec && (
-                   <div style={{ position: 'absolute', top: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '8px solid #D97706', cursor: 'pointer' }}></div>
-                     <div style={{ marginTop: '2px', fontSize: '0.65rem', color: '#D97706', fontWeight: '600', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
-                   </div>
-                 )}
-               </div>
-             )
+                {/* RECIBIDAS (Triángulo apuntando arriba) */}
+                {nodo.hasRec && (
+                  <div style={{ position: 'absolute', top: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '8px solid #D97706', cursor: 'pointer' }}></div>
+                    <div style={{ marginTop: '2px', fontSize: '0.65rem', color: '#D97706', fontWeight: '600', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
+                  </div>
+                )}
+              </div>
+            )
           })}
         </div>
-
       </div>
 
       {/* ÁREA DE TRABAJO */}

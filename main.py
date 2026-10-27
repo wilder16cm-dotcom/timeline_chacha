@@ -24,16 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# 4. Permisos CORS para React (Vite)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # 5. Endpoints
 @app.get("/cartas")
 def obtener_cartas(
@@ -95,3 +85,30 @@ def obtener_links():
     except Exception as e:
         print(f"Error links: {e}")
         return []
+
+@app.get("/cartas-completas")
+def obtener_cartas_completas():
+    try:
+        # Extraemos ambas tablas de Neon
+        df_cartas = pd.read_sql("SELECT * FROM control_documentario", engine)
+        df_links = pd.read_sql("SELECT * FROM links_drive", engine)
+        
+        # Creamos la llave temporal para hacer el match exacto
+        df_cartas['LLAVE_CRUCE'] = df_cartas['NRO_DOC'] + '.pdf'
+        
+        # Ejecutamos el cruce (LEFT JOIN)
+        df_final = pd.merge(
+            df_cartas, 
+            df_links[['NOMBRE', 'URL']], 
+            left_on='LLAVE_CRUCE', 
+            right_on='NOMBRE', 
+            how='left'
+        )
+        
+        # Limpiamos columnas auxiliares y rellenamos nulos para no romper React
+        df_final.drop(columns=['LLAVE_CRUCE', 'NOMBRE'], inplace=True)
+        df_final = df_final.fillna("")
+        
+        return df_final.to_dict(orient="records")
+    except Exception as e:
+        return {"error": str(e)}

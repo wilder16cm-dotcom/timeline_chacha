@@ -137,7 +137,7 @@ function App() {
         {/* PANEL VERTICAL */}
         <div style={{ width: '35%', minWidth: '420px', backgroundColor: '#FAFAFA', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
-            {cartasConTs.map((carta, index) => {
+            {[...cartasConTs].sort((a, b) => b.ts - a.ts).map((carta, index) => {
               const esEnviada = carta.ORIGEN_DOC?.toUpperCase().includes('ENV');
               const esHito = carta.TIPO_EVENTO?.toUpperCase().includes('HITO');
               const isActive = docSeleccionado && docSeleccionado.NRO_DOC === carta.NRO_DOC;

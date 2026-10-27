@@ -5,11 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
 from typing import Optional
 from dotenv import load_dotenv
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import io
-from weasyprint import HTML
-
+import pdfkit
 
 # 1. Cargar variables de entorno ocultas
 load_dotenv()
@@ -28,14 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 5. Endpoints
+# 4. Endpoints
 @app.get("/cartas")
 def obtener_cartas(
     componente: Optional[str] = Query(None),
     entregable: Optional[str] = Query(None),
     busqueda: Optional[str] = Query(None)
 ):
-    df = pd.read_sql("SELECT * FROM control_documentario ORDER BY \"FECHA_DOC\" ASC", engine)
+    df = pd.read_sql('SELECT * FROM control_documentario ORDER BY "FECHA_DOC" ASC', engine)
     df.columns = df.columns.str.upper()
 
     if componente and componente != "Todos":
@@ -62,7 +60,7 @@ def obtener_cartas(
 
 @app.get("/filtros")
 def obtener_opciones_filtros(componente: Optional[str] = Query(None)):
-    df = pd.read_sql("SELECT \"COMPONENTE\", \"ENTREGABLE\" FROM control_documentario", engine)
+    df = pd.read_sql('SELECT "COMPONENTE", "ENTREGABLE" FROM control_documentario', engine)
     df.columns = df.columns.str.upper()
     
     componentes = df['COMPONENTE'].dropna().unique().tolist()
@@ -93,14 +91,11 @@ def obtener_links():
 @app.get("/cartas-completas")
 def obtener_cartas_completas():
     try:
-        # Extraemos ambas tablas de Neon
         df_cartas = pd.read_sql("SELECT * FROM control_documentario", engine)
         df_links = pd.read_sql("SELECT * FROM links_drive", engine)
         
-        # Creamos la llave temporal para hacer el match exacto
         df_cartas['LLAVE_CRUCE'] = df_cartas['NRO_DOC'] + '.pdf'
         
-        # Ejecutamos el cruce (LEFT JOIN)
         df_final = pd.merge(
             df_cartas, 
             df_links[['NOMBRE', 'URL']], 
@@ -109,7 +104,6 @@ def obtener_cartas_completas():
             how='left'
         )
         
-        # Limpiamos columnas auxiliares y rellenamos nulos para no romper React
         df_final.drop(columns=['LLAVE_CRUCE', 'NOMBRE'], inplace=True)
         df_final = df_final.fillna("")
         
@@ -124,7 +118,7 @@ def generar_reporte_pdf(
 ):
     try:
         # 1. Traer y filtrar datos
-        df = pd.read_sql("SELECT * FROM control_documentario ORDER BY \"FECHA_DOC\" ASC", engine)
+        df = pd.read_sql('SELECT * FROM control_documentario ORDER BY "FECHA_DOC" ASC', engine)
         df.columns = df.columns.str.upper()
         
         if componente and componente != "Todos":
@@ -140,8 +134,7 @@ def generar_reporte_pdf(
         for c in cartas:
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
             es_hito = 'HITO' in str(c.get('TIPO_EVENTO', '')).upper()
-            es_recibida = not es_enviada and not es_hito
-
+            
             if es_hito:
                 filas_html += f"""
                 <tr style="page-break-inside: avoid;">
@@ -181,7 +174,7 @@ def generar_reporte_pdf(
                 </tr>
                 """
 
-        # 3. Ensamblar el HTML completo
+        # 3. Ensamblar el HTML completo usando f-strings seguros para el CSS
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
@@ -219,12 +212,23 @@ def generar_reporte_pdf(
         </body></html>
         """
 
-        # 4. Generar y devolver el PDF
-        pdf_bytes = HTML(string=html_completo).write_pdf()
+        # 4. Generar y devolver el PDF con pdfkit
+        options = {
+            'page-size': 'A4',
+            'margin-top': '15mm',
+            'margin-right': '15mm',
+            'margin-bottom': '15mm',
+            'margin-left': '15mm',
+            'encoding': "UTF-8",
+            'no-outline': None
+        }
+        
+        pdf_bytes = pdfkit.from_string(html_completo, False, options=options)
+        
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
-            headers={{"Content-Disposition": f'attachment; filename="Linea_Tiempo_{componente}_{entregable}.pdf"'}}
+            headers={"Content-Disposition": f'attachment; filename="Linea_Tiempo_{componente}_{entregable}.pdf"'}
         )
     except Exception as e:
-        return {{"error": str(e)}}
+        return {"error": str(e)}

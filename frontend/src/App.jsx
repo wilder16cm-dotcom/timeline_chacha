@@ -4,8 +4,8 @@ function App() {
   const [cartas, setCartas] = useState([])
   const [links, setLinks] = useState([])
   const [filtrosOpciones, setFiltrosOpciones] = useState({ componentes: [], entregables: [] })
-  const [componente, setComponente] = useState('Todos')
-  const [entregable, setEntregable] = useState('Todos')
+  const [componente, setComponente] = useState('PGV')
+  const [entregable, setEntregable] = useState('Segundo Informe')
   const [busqueda, setBusqueda] = useState('')
   
   const [docSeleccionado, setDocSeleccionado] = useState(null)
@@ -116,19 +116,45 @@ function App() {
           </div>
         </div>
         
-        <div style={{ position: 'relative', height: '40px', margin: '0 20px' }}>
-          <div style={{ position: 'absolute', top: '10px', left: 0, right: 0, height: '2px', backgroundColor: '#E5E7EB' }}></div>
+                <div style={{ position: 'relative', height: '80px', margin: '0 20px' }}>
+          {/* Línea base central */}
+          <div style={{ position: 'absolute', top: '40px', left: 0, right: 0, height: '2px', backgroundColor: '#E5E7EB' }}></div>
+          
           {nodosUnicos.map((nodo, index) => {
              const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
-             let dotColor = nodo.hasHito ? '#9F1239' : (nodo.hasEnv ? '#1E3A8A' : '#D97706'); 
+             
              return (
-               <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '11px', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
-                 <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: dotColor, border: '2px solid white', boxShadow: '0 0 0 1px #D1D5DB' }}></div>
-                 <div style={{ position: 'absolute', top: '16px', fontSize: '0.65rem', color: '#6B7280', fontWeight: '500' }}>{nodo.fechaStr.substring(0,5)}</div>
+               <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
+                 
+                 {/* ENVIADAS (Arriba de la línea) */}
+                 {nodo.hasEnv && (
+                   <div style={{ position: 'absolute', bottom: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                     <div style={{ fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
+                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#1E3A8A', border: '2px solid white', boxShadow: '0 0 0 1px #D1D5DB' }}></div>
+                   </div>
+                 )}
+
+                 {/* HITOS (Exactamente al centro) */}
+                 {nodo.hasHito && (
+                   <div style={{ position: 'absolute', top: '-7px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
+                     <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#9F1239', border: '2px solid white', boxShadow: '0 0 0 2px white' }}></div>
+                     {/* Si solo hay hito ese día, ponemos la fecha abajo */}
+                     {(!nodo.hasEnv && !nodo.hasRec) && <div style={{ marginTop: '16px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '700', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>}
+                   </div>
+                 )}
+
+                 {/* RECIBIDAS (Abajo de la línea) */}
+                 {nodo.hasRec && (
+                   <div style={{ position: 'absolute', top: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#D97706', border: '2px solid white', boxShadow: '0 0 0 1px #D1D5DB' }}></div>
+                     <div style={{ marginTop: '4px', fontSize: '0.65rem', color: '#D97706', fontWeight: '600', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
+                   </div>
+                 )}
                </div>
              )
           })}
         </div>
+
       </div>
 
       {/* ÁREA DE TRABAJO */}

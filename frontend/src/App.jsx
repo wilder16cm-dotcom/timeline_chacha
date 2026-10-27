@@ -4,6 +4,8 @@ function App() {
   const [cartas, setCartas] = useState([])
   const [links, setLinks] = useState([])
   const [filtrosOpciones, setFiltrosOpciones] = useState({ componentes: [], entregables: [] })
+  
+  // Filtros por defecto activados
   const [componente, setComponente] = useState('PGV')
   const [entregable, setEntregable] = useState('Segundo Informe')
   const [busqueda, setBusqueda] = useState('')
@@ -48,8 +50,11 @@ function App() {
   const nodosPlanoLlave = {};
   cartasConTs.forEach(c => {
     if (!nodosPlanoLlave[c.FECHA_STR]) {
-      nodosPlanoLlave[c.FECHA_STR] = { ts: c.ts, hasHito: false, hasEnv: false, hasRec: false, fechaStr: c.FECHA_STR };
+      nodosPlanoLlave[c.FECHA_STR] = { ts: c.ts, hasHito: false, hasEnv: false, hasRec: false, fechaStr: c.FECHA_STR, docs: [] };
     }
+    // Guardamos el nombre del documento para el tooltip
+    nodosPlanoLlave[c.FECHA_STR].docs.push(c.NRO_DOC);
+    
     if (c.TIPO_EVENTO?.toUpperCase().includes('HITO')) nodosPlanoLlave[c.FECHA_STR].hasHito = true;
     else if (c.ORIGEN_DOC?.toUpperCase().includes('ENV')) nodosPlanoLlave[c.FECHA_STR].hasEnv = true;
     else nodosPlanoLlave[c.FECHA_STR].hasRec = true;
@@ -109,45 +114,47 @@ function App() {
       <div style={{ backgroundColor: 'white', borderBottom: '1px solid #E5E7EB', padding: '16px 32px', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ margin: 0, fontSize: '0.75rem', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>{tituloContexto}</h3>
+          
+          {/* LEYENDA ACTUALIZADA */}
           <div style={{ display: 'flex', gap: '16px', fontSize: '0.7rem', fontWeight: '600', color: '#6B7280' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#1E3A8A' }}></div> ENVIADAS</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#D97706' }}></div> RECIBIDAS</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#9F1239' }}></div> HITOS</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #1E3A8A' }}></div> ENVIADAS</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '6px solid #D97706' }}></div> RECIBIDAS</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '8px', height: '8px', backgroundColor: '#9F1239', transform: 'rotate(45deg)' }}></div> HITOS</div>
           </div>
         </div>
         
-                <div style={{ position: 'relative', height: '80px', margin: '0 20px' }}>
-          {/* Línea base central */}
+        {/* LÍNEA DE TIEMPO CON GEOMETRÍA Y TOOLTIPS */}
+        <div style={{ position: 'relative', height: '80px', margin: '0 20px' }}>
           <div style={{ position: 'absolute', top: '40px', left: 0, right: 0, height: '2px', backgroundColor: '#E5E7EB' }}></div>
           
           {nodosUnicos.map((nodo, index) => {
              const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
+             const tooltipText = nodo.docs.join('\n');
              
              return (
                <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
                  
-                 {/* ENVIADAS (Arriba de la línea) */}
+                 {/* ENVIADAS (Triángulo apuntando abajo) */}
                  {nodo.hasEnv && (
-                   <div style={{ position: 'absolute', bottom: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                     <div style={{ fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
-                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#1E3A8A', border: '2px solid white', boxShadow: '0 0 0 1px #D1D5DB' }}></div>
+                   <div style={{ position: 'absolute', bottom: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                     <div style={{ fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '600', marginBottom: '2px', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
+                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '8px solid #1E3A8A', cursor: 'pointer' }}></div>
                    </div>
                  )}
 
-                 {/* HITOS (Exactamente al centro) */}
+                 {/* HITOS (Rombo central) */}
                  {nodo.hasHito && (
-                   <div style={{ position: 'absolute', top: '-7px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
-                     <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#9F1239', border: '2px solid white', boxShadow: '0 0 0 2px white' }}></div>
-                     {/* Si solo hay hito ese día, ponemos la fecha abajo */}
-                     {(!nodo.hasEnv && !nodo.hasRec) && <div style={{ marginTop: '16px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '700', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>}
+                   <div style={{ position: 'absolute', top: '-6px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
+                     <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white' }}></div>
+                     {(!nodo.hasEnv && !nodo.hasRec) && <div style={{ marginTop: '14px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '700', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>}
                    </div>
                  )}
 
-                 {/* RECIBIDAS (Abajo de la línea) */}
+                 {/* RECIBIDAS (Triángulo apuntando arriba) */}
                  {nodo.hasRec && (
-                   <div style={{ position: 'absolute', top: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#D97706', border: '2px solid white', boxShadow: '0 0 0 1px #D1D5DB' }}></div>
-                     <div style={{ marginTop: '4px', fontSize: '0.65rem', color: '#D97706', fontWeight: '600', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
+                   <div style={{ position: 'absolute', top: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '8px solid #D97706', cursor: 'pointer' }}></div>
+                     <div style={{ marginTop: '2px', fontSize: '0.65rem', color: '#D97706', fontWeight: '600', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
                    </div>
                  )}
                </div>
@@ -160,7 +167,7 @@ function App() {
       {/* ÁREA DE TRABAJO */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         
-        {/* PANEL VERTICAL */}
+        {/* PANEL VERTICAL (Invertido: de más nuevo a más viejo) */}
         <div style={{ width: '35%', minWidth: '420px', backgroundColor: '#FAFAFA', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
             {[...cartasConTs].sort((a, b) => b.ts - a.ts).map((carta, index) => {
@@ -205,11 +212,9 @@ function App() {
           </div>
         </div>
 
-        {/* VISOR PDF (Panel Derecho - Corrección de Flexbox) */}
-        {/* Agregado minWidth: 0 para evitar que este panel desborde horizontalmente */}
+        {/* VISOR PDF */}
         <div style={{ flex: 1, minWidth: 0, backgroundColor: '#E5E7EB', display: 'flex', flexDirection: 'column', padding: '24px' }}>
           {docSeleccionado ? (
-            // Agregado minHeight: 0 para evitar que desborde verticalmente
             <div style={{ flex: 1, minHeight: 0, backgroundColor: 'white', borderRadius: '8px', border: '1px solid #D1D5DB', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
               
               {/* Cabecera del Visor */}
@@ -230,7 +235,7 @@ function App() {
                 )}
               </div>
 
-              {/* Contenedor del Iframe con fondo oscuro para camuflar barras negras */}
+              {/* Contenedor del Iframe */}
               <div style={{ flex: 1, minHeight: 0, width: '100%', backgroundColor: '#525659' }}>
                 {pdfActual ? (
                   <iframe src={pdfActual.url} style={{ display: 'block', width: '100%', height: '100%', border: 'none' }} title={pdfActual.nombre} />
@@ -242,13 +247,12 @@ function App() {
                 )}
               </div>
 
-              {/* Barra Inferior de Anexos con scroll controlado */}
+              {/* Barra Inferior de Anexos */}
               {anexos.length > 0 && (
                 <div style={{ padding: '12px 20px', borderTop: '1px solid #E5E7EB', backgroundColor: '#F9FAFB', flexShrink: 0 }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#6B7280', marginBottom: '10px', letterSpacing: '0.5px' }}>
                     📎 ANEXOS DISPONIBLES ({anexos.length})
                   </div>
-                  {/* Lista de scroll horizontal forzado */}
                   <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
                     {anexos.map((anx, i) => {
                       let anURL = anx.URL;
@@ -259,7 +263,6 @@ function App() {
                         <button 
                           key={i} 
                           onClick={() => setPdfActual({ nombre: anx.Nombre, url: anURL, esPrincipal: false, urlPrincipal: pdfActual?.urlPrincipal })} 
-                          // whiteSpace: nowrap obliga al texto a no partirse, y flexShrink: 0 evita que el botón se aplaste
                           style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: '0.75rem', backgroundColor: isSelected ? '#1E3A8A' : 'white', color: isSelected ? 'white' : '#475569', border: `1px solid ${isSelected ? '#1E3A8A' : '#CBD5E1'}`, borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}
                         >
                           {anx.Nombre}

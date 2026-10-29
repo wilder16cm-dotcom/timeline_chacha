@@ -135,7 +135,6 @@ def generar_reporte_pdf(
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
             es_hito = 'HITO' in str(c.get('TIPO_EVENTO', '')).upper()
             
-            # Limpiamos valores nulos o NaN para que no se impriman en texto
             nro_doc = str(c.get('NRO_DOC', ''))
             if nro_doc.lower() in ['none', 'nan', '']:
                 nro_doc = ""
@@ -183,13 +182,22 @@ def generar_reporte_pdf(
                 </tr>
                 """
 
-        # 3. Ensamblar el HTML del cuerpo principal
+        # 3. Ensamblar el HTML con una ÚNICA TABLA (Evita que el servidor colapse)
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
             *, *::before, *::after {{ box-sizing: border-box; }}
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: #F9FAFB; }}
-            .timeline-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }}
+            .timeline-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
+            
+            /* Esta clase fuerza a que el encabezado se repita en cada página impresa */
+            thead {{ display: table-header-group; }}
+            
+            .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; text-align: left; }}
+            .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
+            .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
+            .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
+            
             .card {{ border-radius: 6px; padding: 12px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 100%; position: relative; z-index: 2; }}
             .card-enviada {{ background-color: #EFF6FF; border: 1px solid #BFDBFE; text-align: right; }}
             .card-recibida {{ background-color: #FFFBEB; border: 1px solid #FDE68A; text-align: left; }}
@@ -208,50 +216,36 @@ def generar_reporte_pdf(
             .center-line-bg {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background-color: #E5E7EB; margin-left: -1px; z-index: 1; }}
             .dot-hito {{ position: relative; z-index: 5; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; margin: 0 auto 10px auto; transform: rotate(45deg); }}
         </style></head><body>
-        <table class="timeline-table">{filas_html}</table>
+        
+        <!-- UNA SOLA TABLA PARA TODO -->
+        <table class="timeline-table">
+            <thead>
+                <tr>
+                    <th colspan="2" style="padding-bottom: 20px; font-weight: normal;">
+                        <div class="header">
+                            <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
+                            <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {filas_html}
+            </tbody>
+        </table>
+        
         </body></html>
         """
 
-        # 4. Crear el HTML del encabezado repetitivo
-        html_header = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <style>
-                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: transparent; }}
-                .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 0px; }}
-                .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
-                .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
-                .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
-            </style>
-        </head>
-        <body style="border:0; margin: 0;">
-            <div class="header">
-                <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
-                <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
-            </div>
-        </body>
-        </html>
-        """
-
-        # Guardar el HTML del encabezado temporalmente
-        header_path = "/tmp/header.html"
-        with open(header_path, "w", encoding="utf-8") as f:
-            f.write(html_header)
-
-        # 5. Generar y devolver el PDF
+        # 4. Generar y devolver el PDF (Opciones simples y seguras)
         options = {
             'page-size': 'A4',
-            'margin-top': '35mm', # Espacio reservado para el encabezado
+            'margin-top': '10mm',
             'margin-right': '15mm',
             'margin-bottom': '10mm',
             'margin-left': '15mm',
             'encoding': "UTF-8",
-            'no-outline': None,
-            'header-html': header_path,
-            'header-spacing': '5',
-            'enable-local-file-access': '' # <- El valor vacío fuerza la bandera en wkhtmltopdf
+            'no-outline': None
         }
 
         pdf_bytes = pdfkit.from_string(html_completo, False, options=options)

@@ -219,14 +219,14 @@ def generar_reporte_pdf(
         <head>
             <meta charset="utf-8">
             <style>
-                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; }}
-                .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; width: 100%; box-sizing: border-box; }}
+                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: transparent; }}
+                .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 0px; }}
                 .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
                 .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
                 .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
             </style>
         </head>
-        <body>
+        <body style="border:0; margin: 0;">
             <div class="header">
                 <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
                 <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
@@ -235,7 +235,7 @@ def generar_reporte_pdf(
         </html>
         """
 
-        # Guardar el HTML del encabezado temporalmente para que pdfkit lo use
+        # Guardar el HTML del encabezado temporalmente
         header_path = "/tmp/header.html"
         with open(header_path, "w", encoding="utf-8") as f:
             f.write(html_header)
@@ -243,18 +243,17 @@ def generar_reporte_pdf(
         # 5. Generar y devolver el PDF
         options = {
             'page-size': 'A4',
-            'margin-top': '35mm', # Espacio superior reservado para el encabezado
+            'margin-top': '35mm', # Espacio reservado para el encabezado
             'margin-right': '15mm',
             'margin-bottom': '10mm',
             'margin-left': '15mm',
             'encoding': "UTF-8",
             'no-outline': None,
-            'header-html': header_path, # Inyectamos el encabezado nativamente
+            'header-html': header_path,
             'header-spacing': '5',
-            'enable-local-file-access': None # Permiso clave para leer el archivo temporal en Render
+            'enable-local-file-access': '' # <- El valor vacío fuerza la bandera en wkhtmltopdf
         }
 
-        
         pdf_bytes = pdfkit.from_string(html_completo, False, options=options)
         
         return StreamingResponse(

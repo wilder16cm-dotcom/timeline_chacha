@@ -126,10 +126,11 @@ function App() {
 
       {/* PLANO LLAVE */}
       <div style={{ backgroundColor: 'white', borderBottom: '1px solid #E5E7EB', padding: '16px 32px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        
+        {/* CABECERA Y LEYENDA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, fontSize: '0.75rem', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>{tituloContexto}</h3>
           
-          {/* LEYENDA ACTUALIZADA */}
           <div style={{ display: 'flex', gap: '16px', fontSize: '0.7rem', fontWeight: '600', color: '#6B7280' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #1E3A8A' }}></div> ENVIADAS</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '6px solid #D97706' }}></div> RECIBIDAS</div>
@@ -137,45 +138,81 @@ function App() {
           </div>
         </div>
         
-        {/* LÍNEA DE TIEMPO CON GEOMETRÍA Y TOOLTIPS */}
-        <div style={{ position: 'relative', height: '80px', margin: '0 20px' }}>
+        {/* LÍNEA DE TIEMPO COMPACTA (UNA PANTALLA) */}
+        <div style={{ position: 'relative', height: '90px', margin: '0 20px', paddingTop: '10px' }}>
+          
+          {/* Línea base central */}
           <div style={{ position: 'absolute', top: '40px', left: 0, right: 0, height: '2px', backgroundColor: '#E5E7EB' }}></div>
           
+          {/* SEPARADORES MATEMÁTICOS DE AÑO */}
+          {(() => {
+             const minYear = new Date(minTs).getFullYear();
+             const maxYear = new Date(maxTs).getFullYear();
+             const separadores = [];
+             for (let y = minYear + 1; y <= maxYear; y++) {
+                 const tsInicio = new Date(y, 0, 1).getTime();
+                 if (tsInicio > minTs && tsInicio < maxTs) {
+                     const percent = ((tsInicio - minTs) / timeRange) * 100;
+                     separadores.push(
+                         <div key={`year-${y}`} style={{ position: 'absolute', left: `${percent}%`, top: '15px', bottom: '0px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+                             <div style={{ backgroundColor: '#F3F4F6', color: '#6B7280', fontSize: '0.65rem', fontWeight: '700', padding: '2px 8px', borderRadius: '12px', zIndex: 2, border: '1px solid #E5E7EB' }}>{y}</div>
+                             <div style={{ width: '1px', flex: 1, borderLeft: '2px dashed #E5E7EB', marginTop: '-4px' }}></div>
+                         </div>
+                     );
+                 }
+             }
+             return separadores;
+          })()}
+
+          {/* NODOS DE DOCUMENTOS */}
           {nodosUnicos.map((nodo, index) => {
-            const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
-            const tooltipText = nodo.docs.join('\n');
-            
-            return (
-              <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
-                
-                {/* ENVIADAS (Triángulo apuntando abajo) */}
-                {nodo.hasEnv && (
-                  <div style={{ position: 'absolute', bottom: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '600', marginBottom: '2px', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
-                    <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '8px solid #1E3A8A', cursor: 'pointer' }}></div>
-                  </div>
-                )}
+             const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
+             const tooltipText = nodo.docs.join('\n');
+             const fechaCorta = nodo.fechaStr.substring(0,5); // Retornamos al formato limpio DD/MM
+             
+             return (
+               <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
+                 
+                 {/* ENVIADAS (Nivel Superior) */}
+                 {nodo.hasEnv && (
+                   <div style={{ position: 'absolute', bottom: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 4 }}>
+                     {/* Fondo blanco superpuesto (efecto Badge) */}
+                     <div style={{ backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px', fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '700', marginBottom: '2px', whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                       {fechaCorta}
+                     </div>
+                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #1E3A8A', cursor: 'pointer' }}></div>
+                   </div>
+                 )}
 
-                {/* HITOS (Rombo central) */}
-                {nodo.hasHito && (
-                  <div style={{ position: 'absolute', top: '-6px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
-                    <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white' }}></div>
-                    {(!nodo.hasEnv && !nodo.hasRec) && <div style={{ marginTop: '14px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '700', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>}
-                  </div>
-                )}
+                 {/* HITOS (Nivel Inferior Profundo - Escalonado) */}
+                 {nodo.hasHito && (
+                   <div style={{ position: 'absolute', top: '-6px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 5 }}>
+                     <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white', boxShadow: '0 0 0 1px #9F1239' }}></div>
+                     
+                     {/* Hilo conector vertical sutil */}
+                     <div style={{ position: 'absolute', top: '12px', height: '18px', width: '1px', backgroundColor: '#FCA5A5', zIndex: -1 }}></div>
+                     
+                     <div style={{ marginTop: '28px', backgroundColor: 'rgba(255,255,255,0.95)', padding: '2px 4px', borderRadius: '4px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '800', whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                       {fechaCorta}
+                     </div>
+                   </div>
+                 )}
 
-                {/* RECIBIDAS (Triángulo apuntando arriba) */}
-                {nodo.hasRec && (
-                  <div style={{ position: 'absolute', top: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '8px solid #D97706', cursor: 'pointer' }}></div>
-                    <div style={{ marginTop: '2px', fontSize: '0.65rem', color: '#D97706', fontWeight: '600', whiteSpace: 'nowrap' }}>{nodo.fechaStr.substring(0,5)}</div>
-                  </div>
-                )}
-              </div>
-            )
+                 {/* RECIBIDAS (Nivel Inferior Inmediato) */}
+                 {nodo.hasRec && (
+                   <div style={{ position: 'absolute', top: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
+                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '7px solid #D97706', cursor: 'pointer' }}></div>
+                     <div style={{ marginTop: '2px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px', fontSize: '0.65rem', color: '#D97706', fontWeight: '700', whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                       {fechaCorta}
+                     </div>
+                   </div>
+                 )}
+               </div>
+             )
           })}
         </div>
       </div>
+
 
       {/* ÁREA DE TRABAJO */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

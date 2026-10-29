@@ -117,8 +117,10 @@ def generar_reporte_pdf(
     entregable: str = Query("Segundo Informe")
 ):
     try:
-        # 1. Traer y filtrar datos ordenados del más reciente al más antiguo (DESC)
-        df = pd.read_sql('SELECT * FROM control_documentario ORDER BY "FECHA_DOC" DESC', engine)
+        # 1. Conexión segura: se abre y se cierra automáticamente al terminar el bloque
+        with engine.connect() as conn:
+            df = pd.read_sql('SELECT * FROM control_documentario ORDER BY "FECHA_DOC" DESC', conn)
+            
         df.columns = df.columns.str.upper()
         
         if componente and componente != "Todos":

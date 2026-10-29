@@ -117,7 +117,7 @@ def generar_reporte_pdf(
     entregable: str = Query("Segundo Informe")
 ):
     try:
-        # 1. Conexión segura: se abre y se cierra automáticamente al terminar el bloque
+        # 1. Conexión segura con Pandas para evitar errores de red
         with engine.connect() as conn:
             df = pd.read_sql('SELECT * FROM control_documentario ORDER BY "FECHA_DOC" DESC', conn)
             
@@ -131,7 +131,7 @@ def generar_reporte_pdf(
         df['FECHA_STR'] = pd.to_datetime(df['FECHA_DOC']).dt.strftime('%d/%m/%Y')
         cartas = df.to_dict(orient="records")
 
-        # 2. Construir las filas dinámicamente usando múltiples TBODY para evitar cortes
+        # 2. Construir filas blindadas contra cortes (inline-block div + mini tabla)
         filas_html = ""
         for c in cartas:
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
@@ -147,63 +147,81 @@ def generar_reporte_pdf(
 
             if es_hito:
                 filas_html += f"""
-                <tbody style="page-break-inside: avoid;">
-                    <tr>
-                        <td colspan="2" class="td-center">
-                            <div class="center-line-bg"></div><div class="dot-hito"></div>
-                            <div class="card card-hito">
-                                <span class="tag tag-hito">HITO CONTRACTUAL</span><span class="fecha">{c['FECHA_STR']}</span>
-                                <div class="asunto" style="font-weight: bold; color: #881337; font-size: 10pt;">{asunto}</div>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
+                <div class="timeline-item">
+                    <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; padding: 0;">
+                        <tr>
+                            <td class="td-center">
+                                <div class="center-line-bg"></div><div class="dot-hito"></div>
+                                <div class="card card-hito">
+                                    <span class="tag tag-hito">HITO CONTRACTUAL</span><span class="fecha">{c['FECHA_STR']}</span>
+                                    <div class="asunto" style="font-weight: bold; color: #881337; font-size: 10pt;">{asunto}</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
                 """
             elif es_enviada:
                 filas_html += f"""
-                <tbody style="page-break-inside: avoid;">
-                    <tr>
-                        <td class="td-left">
-                            <div class="dot dot-enviada"></div>
-                            <div class="card card-enviada">
-                                <span class="tag tag-enviada">ENVIADA</span><span class="fecha">{c['FECHA_STR']}</span>
-                                <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
-                            </div>
-                        </td>
-                        <td class="td-right"></td>
-                    </tr>
-                </tbody>
+                <div class="timeline-item">
+                    <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; padding: 0;">
+                        <tr>
+                            <td class="td-left">
+                                <div class="dot dot-enviada"></div>
+                                <div class="card card-enviada">
+                                    <span class="tag tag-enviada">ENVIADA</span><span class="fecha">{c['FECHA_STR']}</span>
+                                    <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
+                                </div>
+                            </td>
+                            <td class="td-right"></td>
+                        </tr>
+                    </table>
+                </div>
                 """
             else:
                 filas_html += f"""
-                <tbody style="page-break-inside: avoid;">
-                    <tr>
-                        <td class="td-left"></td>
-                        <td class="td-right">
-                            <div class="dot dot-recibida"></div>
-                            <div class="card card-recibida">
-                                <span class="tag tag-recibida">RECIBIDA</span><span class="fecha">{c['FECHA_STR']}</span>
-                                <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
+                <div class="timeline-item">
+                    <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; padding: 0;">
+                        <tr>
+                            <td class="td-left" style="border-right: 2px solid #E5E7EB;"></td>
+                            <td class="td-right">
+                                <div class="dot dot-recibida"></div>
+                                <div class="card card-recibida">
+                                    <span class="tag tag-recibida">RECIBIDA</span><span class="fecha">{c['FECHA_STR']}</span>
+                                    <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
                 """
 
-        # 3. Ensamblar el HTML general
+        # 3. Ensamblar el HTML General asegurando el THEAD para el encabezado corporativo
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
             *, *::before, *::after {{ box-sizing: border-box; }}
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: #F9FAFB; }}
-            .timeline-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
             
+            .main-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
             thead {{ display: table-header-group; }}
             
             .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; text-align: left; }}
             .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
             .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
             .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
+            
+            .timeline-wrapper {{ font-size: 0; }} /* Mata los espacios en blanco entre divs inline-block */
+            
+            /* LA CLASE MÁGICA: Obliga a wkhtmltopdf a respetar el bloque sin romperlo */
+            .timeline-item {{
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: inline-block;
+                width: 100%;
+                vertical-align: top;
+                font-size: 10pt; 
+            }}
             
             .card {{ border-radius: 6px; padding: 12px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 100%; position: relative; z-index: 2; }}
             .card-enviada {{ background-color: #EFF6FF; border: 1px solid #BFDBFE; text-align: right; }}
@@ -218,18 +236,20 @@ def generar_reporte_pdf(
             
             .td-left {{ width: 50%; padding: 8px 25px 15px 0; vertical-align: top; border-right: 2px solid #E5E7EB; position: relative; }}
             .td-right {{ width: 50%; padding: 8px 0 15px 25px; vertical-align: top; position: relative; }}
+            .td-center {{ width: 100%; padding: 15px 0; text-align: center; vertical-align: middle; position: relative; }}
+            
             .dot {{ position: absolute; top: 20px; width: 12px; height: 12px; border: 2px solid white; z-index: 5; }}
             .dot-enviada {{ right: -7px; background-color: #1E3A8A; border-radius: 50%; }}
             .dot-recibida {{ left: -7px; background-color: #D97706; border-radius: 50%; }}
-            .td-center {{ padding: 15px 0; text-align: center; vertical-align: middle; position: relative; }}
+            
             .center-line-bg {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background-color: #E5E7EB; margin-left: -1px; z-index: 1; }}
             .dot-hito {{ position: relative; z-index: 5; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; margin: 0 auto 10px auto; transform: rotate(45deg); }}
         </style></head><body>
         
-        <table class="timeline-table">
+        <table class="main-table">
             <thead>
                 <tr>
-                    <th colspan="2" style="padding-bottom: 20px; font-weight: normal;">
+                    <th style="padding-bottom: 20px; font-weight: normal;">
                         <div class="header">
                             <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
                             <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
@@ -237,8 +257,13 @@ def generar_reporte_pdf(
                     </th>
                 </tr>
             </thead>
-            <!-- El string de filas_html ahora inyecta directamente bloques TBODY independientes -->
-            {filas_html}
+            <tbody>
+                <tr>
+                    <td class="timeline-wrapper">
+                        {filas_html}
+                    </td>
+                </tr>
+            </tbody>
         </table>
         
         </body></html>

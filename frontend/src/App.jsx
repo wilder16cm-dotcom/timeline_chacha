@@ -167,49 +167,37 @@ function App() {
           {/* NODOS DE DOCUMENTOS */}
           {nodosUnicos.map((nodo, index) => {
              const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
-             const tooltipText = nodo.docs.join('\n');
-             const fechaCorta = nodo.fechaStr.substring(0,5); // Retornamos al formato limpio DD/MM
+             const fechaCorta = nodo.fechaStr.substring(0,5);
+             // Añadimos la fecha directamente al texto flotante
+             const tooltipText = `${fechaCorta}\n${nodo.docs.join('\n')}`; 
              
              return (
                <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
                  
-                 {/* ENVIADAS (Nivel Superior) */}
+                 {/* ENVIADAS (Triángulo apuntando abajo) */}
                  {nodo.hasEnv && (
                    <div style={{ position: 'absolute', bottom: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 4 }}>
-                     {/* Fondo blanco superpuesto (efecto Badge) */}
-                     <div style={{ backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px', fontSize: '0.65rem', color: '#1E3A8A', fontWeight: '700', marginBottom: '2px', whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                       {fechaCorta}
-                     </div>
-                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #1E3A8A', cursor: 'pointer' }}></div>
+                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '8px solid #1E3A8A', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.7)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}></div>
                    </div>
                  )}
 
-                 {/* HITOS (Nivel Inferior Profundo - Escalonado) */}
+                 {/* HITOS (Rombo central) */}
                  {nodo.hasHito && (
                    <div style={{ position: 'absolute', top: '-6px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 5 }}>
-                     <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white', boxShadow: '0 0 0 1px #9F1239' }}></div>
-                     
-                     {/* Hilo conector vertical sutil */}
-                     <div style={{ position: 'absolute', top: '12px', height: '18px', width: '1px', backgroundColor: '#FCA5A5', zIndex: -1 }}></div>
-                     
-                     <div style={{ marginTop: '28px', backgroundColor: 'rgba(255,255,255,0.95)', padding: '2px 4px', borderRadius: '4px', fontSize: '0.65rem', color: '#9F1239', fontWeight: '800', whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                       {fechaCorta}
-                     </div>
+                     <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white', boxShadow: '0 0 0 1px #9F1239', transition: 'transform 0.15s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.5) rotate(45deg)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1) rotate(45deg)'}></div>
                    </div>
                  )}
 
-                 {/* RECIBIDAS (Nivel Inferior Inmediato) */}
+                 {/* RECIBIDAS (Triángulo apuntando arriba) */}
                  {nodo.hasRec && (
                    <div style={{ position: 'absolute', top: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
-                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '7px solid #D97706', cursor: 'pointer' }}></div>
-                     <div style={{ marginTop: '2px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px', fontSize: '0.65rem', color: '#D97706', fontWeight: '700', whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                       {fechaCorta}
-                     </div>
+                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '8px solid #D97706', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.7)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}></div>
                    </div>
                  )}
                </div>
              )
           })}
+
         </div>
       </div>
 

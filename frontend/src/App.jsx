@@ -128,7 +128,7 @@ function App() {
       <div style={{ backgroundColor: 'white', borderBottom: '1px solid #E5E7EB', padding: '16px 32px', flexShrink: 0 }}>
         
         {/* CABECERA Y LEYENDA */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h3 style={{ margin: 0, fontSize: '0.75rem', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>{tituloContexto}</h3>
           
           <div style={{ display: 'flex', gap: '16px', fontSize: '0.7rem', fontWeight: '600', color: '#6B7280' }}>
@@ -138,68 +138,90 @@ function App() {
           </div>
         </div>
         
-        {/* LÍNEA DE TIEMPO COMPACTA (UNA PANTALLA) */}
-        <div style={{ position: 'relative', height: '90px', margin: '0 20px', paddingTop: '10px' }}>
+        {/* LÍNEA DE TIEMPO CON ESCALA TEMPORAL (Eje de meses) */}
+        <div style={{ position: 'relative', height: '70px', margin: '0 20px' }}>
           
           {/* Línea base central */}
-          <div style={{ position: 'absolute', top: '40px', left: 0, right: 0, height: '2px', backgroundColor: '#E5E7EB' }}></div>
+          <div style={{ position: 'absolute', top: '30px', left: 0, right: 0, height: '2px', backgroundColor: '#E5E7EB' }}></div>
           
-          {/* SEPARADORES MATEMÁTICOS DE AÑO */}
+          {/* REGLA DE MESES (MARCADORES) */}
           {(() => {
-             const minYear = new Date(minTs).getFullYear();
-             const maxYear = new Date(maxTs).getFullYear();
-             const separadores = [];
-             for (let y = minYear + 1; y <= maxYear; y++) {
-                 const tsInicio = new Date(y, 0, 1).getTime();
-                 if (tsInicio > minTs && tsInicio < maxTs) {
-                     const percent = ((tsInicio - minTs) / timeRange) * 100;
-                     separadores.push(
-                         <div key={`year-${y}`} style={{ position: 'absolute', left: `${percent}%`, top: '15px', bottom: '0px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-                             <div style={{ backgroundColor: '#F3F4F6', color: '#6B7280', fontSize: '0.65rem', fontWeight: '700', padding: '2px 8px', borderRadius: '12px', zIndex: 2, border: '1px solid #E5E7EB' }}>{y}</div>
-                             <div style={{ width: '1px', flex: 1, borderLeft: '2px dashed #E5E7EB', marginTop: '-4px' }}></div>
-                         </div>
-                     );
+             const marcadores = [];
+             if (minTs && maxTs) {
+               let cur = new Date(minTs);
+               cur.setDate(1); // Forzamos al día 1 del mes para dibujar el marcador
+               
+               while (cur.getTime() <= maxTs + 86400000 * 31) {
+                 const t = cur.getTime();
+                 if (t >= minTs && t <= maxTs) {
+                   const percent = ((t - minTs) / timeRange) * 100;
+                   const nombreMes = cur.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }).toUpperCase().replace('.', '');
+                   marcadores.push(
+                     <div key={`mes-${t}`} style={{ position: 'absolute', left: `${percent}%`, top: '26px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+                       <div style={{ height: '10px', width: '2px', backgroundColor: '#D1D5DB' }}></div>
+                       <div style={{ fontSize: '0.6rem', color: '#9CA3AF', fontWeight: '700', marginTop: '4px', letterSpacing: '0.5px' }}>{nombreMes}</div>
+                     </div>
+                   );
                  }
+                 cur.setMonth(cur.getMonth() + 1);
+               }
              }
-             return separadores;
+             return marcadores;
           })()}
 
-          {/* NODOS DE DOCUMENTOS */}
+          {/* NODOS INTERACTIVOS (Con área de hover expandida y eventos click) */}
           {nodosUnicos.map((nodo, index) => {
              const leftPercent = ((nodo.ts - minTs) / timeRange) * 100;
              const fechaCorta = nodo.fechaStr.substring(0,5);
-             // Añadimos la fecha directamente al texto flotante
-             const tooltipText = `${fechaCorta}\n${nodo.docs.join('\n')}`; 
+             const tooltipText = `${fechaCorta} - ${nodo.docs.join(' | ')}`; 
+             
+             // Hace que hacer clic en el gráfico cargue automáticamente el PDF en el visor
+             const handleNodoClick = () => {
+                const cartaBuscada = cartas.find(c => c.NRO_DOC === nodo.docs[0]);
+                if (cartaBuscada) handleSeleccionarDocumento(cartaBuscada);
+             };
              
              return (
-               <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
+               <div key={`keyplan-${index}`} style={{ position: 'absolute', left: `${leftPercent}%`, top: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
                  
-                 {/* ENVIADAS (Triángulo apuntando abajo) */}
+                 {/* ENVIADAS */}
                  {nodo.hasEnv && (
-                   <div style={{ position: 'absolute', bottom: '2px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 4 }}>
-                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '8px solid #1E3A8A', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.7)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}></div>
+                   <div 
+                     title={tooltipText} 
+                     onClick={handleNodoClick}
+                     style={{ position: 'absolute', bottom: '-4px', padding: '6px', cursor: 'pointer', zIndex: 4, display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}
+                   >
+                     <div style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '8px solid #1E3A8A', transition: 'transform 0.1s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.5)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}></div>
                    </div>
                  )}
 
-                 {/* HITOS (Rombo central) */}
+                 {/* HITOS */}
                  {nodo.hasHito && (
-                   <div style={{ position: 'absolute', top: '-6px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 5 }}>
-                     <div title={tooltipText} style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', cursor: 'pointer', border: '1px solid white', boxShadow: '0 0 0 1px #9F1239', transition: 'transform 0.15s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.5) rotate(45deg)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1) rotate(45deg)'}></div>
+                   <div 
+                     title={tooltipText} 
+                     onClick={handleNodoClick}
+                     style={{ position: 'absolute', top: '-11px', padding: '6px', cursor: 'pointer', zIndex: 5, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                   >
+                     <div style={{ width: '12px', height: '12px', backgroundColor: '#9F1239', transform: 'rotate(45deg)', border: '1px solid white', boxShadow: '0 0 0 1px #9F1239', transition: 'transform 0.1s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.4) rotate(45deg)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1) rotate(45deg)'}></div>
                    </div>
                  )}
 
-                 {/* RECIBIDAS (Triángulo apuntando arriba) */}
+                 {/* RECIBIDAS */}
                  {nodo.hasRec && (
-                   <div style={{ position: 'absolute', top: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 3 }}>
-                     <div title={tooltipText} style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '8px solid #D97706', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.7)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}></div>
+                   <div 
+                     title={tooltipText} 
+                     onClick={handleNodoClick}
+                     style={{ position: 'absolute', top: '-4px', padding: '6px', cursor: 'pointer', zIndex: 3, display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}
+                   >
+                     <div style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '8px solid #D97706', transition: 'transform 0.1s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.5)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}></div>
                    </div>
                  )}
                </div>
              )
           })}
-
         </div>
       </div>
+
 
 
       {/* ÁREA DE TRABAJO */}

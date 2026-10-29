@@ -117,7 +117,8 @@ def generar_reporte_pdf(
     entregable: str = Query("Segundo Informe")
 ):
     try:
-        df = pd.read_sql("SELECT * FROM control_documentario ORDER BY \"FECHA_DOC\" ASC", engine)
+        # 1. Traer y filtrar datos ordenados del más reciente al más antiguo (DESC)
+        df = pd.read_sql('SELECT * FROM control_documentario ORDER BY "FECHA_DOC" DESC', engine)
         df.columns = df.columns.str.upper()
         
         if componente and componente != "Todos":
@@ -128,113 +129,136 @@ def generar_reporte_pdf(
         df['FECHA_STR'] = pd.to_datetime(df['FECHA_DOC']).dt.strftime('%d/%m/%Y')
         cartas = df.to_dict(orient="records")
 
-        # Invertimos el orden para que coincida con tu panel izquierdo (de más reciente a más antiguo)
-        cartas.reverse()
-
+        # 2. Construir las filas dinámicamente evitando 'nan'
         filas_html = ""
-        for i, c in enumerate(cartas):
+        for c in cartas:
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
             es_hito = 'HITO' in str(c.get('TIPO_EVENTO', '')).upper()
-            es_recibida = not es_enviada and not es_hito
-
-            # Ocultamos la línea de continuación en el último elemento absoluto
-            estilo_borde = 'border-right: 2px solid transparent;' if i == len(cartas) - 1 else 'border-right: 2px solid #E5E7EB;'
+            
+            # Limpiamos valores nulos o NaN para que no se impriman en texto
+            nro_doc = str(c.get('NRO_DOC', ''))
+            if nro_doc.lower() in ['none', 'nan', '']:
+                nro_doc = ""
+                
+            asunto = str(c.get('ASUNTO', ''))
+            if asunto.lower() in ['none', 'nan']:
+                asunto = ""
 
             if es_hito:
                 filas_html += f"""
-                <tr style="page-break-inside: avoid !important;">
-                    <td colspan="2" style="padding: 20px 0; text-align: center; vertical-align: middle; position: relative;">
-                        <div style="position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background-color: #E5E7EB; margin-left: -1px; z-index: 1;"></div>
-                        <div style="position: relative; z-index: 5; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; margin: 0 auto 15px auto; transform: rotate(45deg);"></div>
-                        <div style="background-color: #FFF1F2; border: 1px solid #FCA5A5; border-left: 4px solid #9F1239; text-align: left; display: inline-block; width: 75%; margin: 0 auto; border-radius: 6px; padding: 14px 18px; position: relative; z-index: 2;">
-                            <span style="font-size: 8pt; font-weight: bold; color: #9F1239; margin-bottom: 6px; display: block;">HITO CONTRACTUAL</span>
-                            <span style="font-size: 9pt; color: #6B7280; font-weight: 500; margin-bottom: 8px; display: block;">{c['FECHA_STR']}</span>
-                            <div style="font-weight: bold; color: #881337; font-size: 10pt;">{c['ASUNTO']}</div>
+                <tr style="page-break-inside: avoid;">
+                    <td colspan="2" class="td-center">
+                        <div class="center-line-bg"></div><div class="dot-hito"></div>
+                        <div class="card card-hito">
+                            <span class="tag tag-hito">HITO CONTRACTUAL</span><span class="fecha">{c['FECHA_STR']}</span>
+                            <div class="asunto" style="font-weight: bold; color: #881337; font-size: 10pt;">{asunto}</div>
                         </div>
                     </td>
                 </tr>
                 """
             elif es_enviada:
                 filas_html += f"""
-                <tr style="page-break-inside: avoid !important;">
-                    <td style="width: 50%; padding: 10px 30px 20px 20px; vertical-align: top; {estilo_borde} position: relative;">
-                        <div style="position: absolute; top: 25px; right: -7px; width: 12px; height: 12px; background-color: #1E3A8A; border: 2px solid white; border-radius: 50%; z-index: 5;"></div>
-                        <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; text-align: right; border-radius: 6px; padding: 14px 18px; width: 100%; position: relative; z-index: 2;">
-                            <span style="font-size: 8pt; font-weight: bold; color: #1E3A8A; margin-bottom: 6px; display: block;">ENVIADA</span>
-                            <span style="font-size: 9pt; color: #6B7280; font-weight: 500; margin-bottom: 8px; display: block;">{c['FECHA_STR']}</span>
-                            <div style="font-size: 10pt; font-weight: bold; color: #111827; margin-bottom: 6px;">{c.get('NRO_DOC', '')}</div>
-                            <div style="font-size: 9pt; color: #4B5563; line-height: 1.4;">{c['ASUNTO']}</div>
+                <tr style="page-break-inside: avoid;">
+                    <td class="td-left">
+                        <div class="dot dot-enviada"></div>
+                        <div class="card card-enviada">
+                            <span class="tag tag-enviada">ENVIADA</span><span class="fecha">{c['FECHA_STR']}</span>
+                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
                         </div>
                     </td>
-                    <td style="width: 50%; padding: 10px 20px 20px 30px; vertical-align: top;"></td>
+                    <td class="td-right"></td>
                 </tr>
                 """
             else:
                 filas_html += f"""
-                <tr style="page-break-inside: avoid !important;">
-                    <td style="width: 50%; padding: 10px 30px 20px 20px; vertical-align: top; {estilo_borde}">
-                        <div style="position: absolute; right: -2px; top: 0; height: 25px; width: 2px; background: #E5E7EB; z-index: 1; display: {'block' if i == len(cartas)-1 else 'none'};"></div>
-                    </td>
-                    <td style="width: 50%; padding: 10px 20px 20px 30px; vertical-align: top; position: relative;">
-                        <div style="position: absolute; top: 25px; left: -7px; width: 12px; height: 12px; background-color: #D97706; border: 2px solid white; border-radius: 50%; z-index: 5;"></div>
-                        <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; text-align: left; border-radius: 6px; padding: 14px 18px; width: 100%; position: relative; z-index: 2;">
-                            <span style="font-size: 8pt; font-weight: bold; color: #D97706; margin-bottom: 6px; display: block;">RECIBIDA</span>
-                            <span style="font-size: 9pt; color: #6B7280; font-weight: 500; margin-bottom: 8px; display: block;">{c['FECHA_STR']}</span>
-                            <div style="font-size: 10pt; font-weight: bold; color: #111827; margin-bottom: 6px;">{c.get('NRO_DOC', '')}</div>
-                            <div style="font-size: 9pt; color: #4B5563; line-height: 1.4;">{c['ASUNTO']}</div>
+                <tr style="page-break-inside: avoid;">
+                    <td class="td-left"></td>
+                    <td class="td-right">
+                        <div class="dot dot-recibida"></div>
+                        <div class="card card-recibida">
+                            <span class="tag tag-recibida">RECIBIDA</span><span class="fecha">{c['FECHA_STR']}</span>
+                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
                         </div>
                     </td>
                 </tr>
                 """
 
+        # 3. Ensamblar el HTML del cuerpo principal
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
-            @page {{ size: A4; margin: 0; }}
             *, *::before, *::after {{ box-sizing: border-box; }}
-            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: white; }}
+            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: #F9FAFB; }}
+            .timeline-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }}
+            .card {{ border-radius: 6px; padding: 12px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 100%; position: relative; z-index: 2; }}
+            .card-enviada {{ background-color: #EFF6FF; border: 1px solid #BFDBFE; text-align: right; }}
+            .card-recibida {{ background-color: #FFFBEB; border: 1px solid #FDE68A; text-align: left; }}
+            .card-hito {{ background-color: #FFF1F2; border: 1px solid #FCA5A5; border-left: 4px solid #9F1239; text-align: left; display: inline-block; width: 75%; margin: 0 auto; }}
+            .tag {{ font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }}
+            .tag-enviada {{ color: #1E3A8A; }} .tag-recibida {{ color: #D97706; }} .tag-hito {{ color: #9F1239; }}
+            .fecha {{ font-size: 8.5pt; color: #6B7280; font-weight: 500; margin-bottom: 6px; display: block; }}
+            .nro-doc {{ font-size: 9.5pt; font-weight: bold; color: #111827; margin-bottom: 4px; }}
+            .asunto {{ font-size: 8.5pt; color: #4B5563; line-height: 1.3; }}
+            .td-left {{ width: 50%; padding: 8px 25px 15px 0; vertical-align: top; border-right: 2px solid #E5E7EB; position: relative; }}
+            .td-right {{ width: 50%; padding: 8px 0 15px 25px; vertical-align: top; position: relative; }}
+            .dot {{ position: absolute; top: 20px; width: 12px; height: 12px; border: 2px solid white; z-index: 5; }}
+            .dot-enviada {{ right: -7px; background-color: #1E3A8A; border-radius: 50%; }}
+            .dot-recibida {{ left: -7px; background-color: #D97706; border-radius: 50%; }}
+            .td-center {{ padding: 15px 0; text-align: center; vertical-align: middle; position: relative; }}
+            .center-line-bg {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background-color: #E5E7EB; margin-left: -1px; z-index: 1; }}
+            .dot-hito {{ position: relative; z-index: 5; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; margin: 0 auto 10px auto; transform: rotate(45deg); }}
         </style></head><body>
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead style="display: table-header-group;">
-                <tr>
-                    <td>
-                        <div style="background-color: #1E293B; color: #F8FAFC; padding: 20px 25px; margin: 20px 20px 30px 20px; border-radius: 6px;">
-                            <h1 style="margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px;">CHACHAPOYAS <span style="color: #94A3B8; font-weight: normal; font-size: 12pt;">/ Control Documentario</span></h1>
-                            <h2 style="margin: 8px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px;">Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
-                        </div>
-                    </td>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>
-                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px;">
-                            {filas_html}
-                        </table>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <table class="timeline-table">{filas_html}</table>
         </body></html>
         """
 
-        options = {{
+        # 4. Crear el HTML del encabezado repetitivo
+        html_header = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; }}
+                .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; width: 100%; box-sizing: border-box; }}
+                .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
+                .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
+                .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
+                <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Guardar el HTML del encabezado temporalmente para que pdfkit lo use
+        header_path = "/tmp/header.html"
+        with open(header_path, "w", encoding="utf-8") as f:
+            f.write(html_header)
+
+        # 5. Generar y devolver el PDF
+        options = {
             'page-size': 'A4',
-            'margin-top': '0mm',
-            'margin-right': '0mm',
+            'margin-top': '35mm', # Espacio superior reservado para el encabezado
+            'margin-right': '15mm',
             'margin-bottom': '10mm',
-            'margin-left': '0mm',
+            'margin-left': '15mm',
             'encoding': "UTF-8",
-            'no-outline': None
-        }}
+            'no-outline': None,
+            'header-html': header_path, # Inyectamos el encabezado nativamente
+            'header-spacing': '5'
+        }
         
         pdf_bytes = pdfkit.from_string(html_completo, False, options=options)
         
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
-            headers={{"Content-Disposition": f'attachment; filename="Linea_Tiempo_{componente}_{entregable}.pdf"'}}
+            headers={"Content-Disposition": f'attachment; filename="Linea_Tiempo_{componente}_{entregable}.pdf"'}
         )
     except Exception as e:
-        return {{"error": str(e)}}
-
+        return {"error": str(e)}

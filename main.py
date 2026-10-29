@@ -250,8 +250,10 @@ def generar_reporte_pdf(
             'encoding': "UTF-8",
             'no-outline': None,
             'header-html': header_path, # Inyectamos el encabezado nativamente
-            'header-spacing': '5'
+            'header-spacing': '5',
+            'enable-local-file-access': None # Permiso clave para leer el archivo temporal en Render
         }
+
         
         pdf_bytes = pdfkit.from_string(html_completo, False, options=options)
         

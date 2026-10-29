@@ -129,7 +129,7 @@ def generar_reporte_pdf(
         df['FECHA_STR'] = pd.to_datetime(df['FECHA_DOC']).dt.strftime('%d/%m/%Y')
         cartas = df.to_dict(orient="records")
 
-        # 2. Construir las filas dinámicamente evitando 'nan'
+        # 2. Construir las filas dinámicamente usando múltiples TBODY para evitar cortes
         filas_html = ""
         for c in cartas:
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
@@ -145,44 +145,50 @@ def generar_reporte_pdf(
 
             if es_hito:
                 filas_html += f"""
-                <tr style="page-break-inside: avoid;">
-                    <td colspan="2" class="td-center">
-                        <div class="center-line-bg"></div><div class="dot-hito"></div>
-                        <div class="card card-hito">
-                            <span class="tag tag-hito">HITO CONTRACTUAL</span><span class="fecha">{c['FECHA_STR']}</span>
-                            <div class="asunto" style="font-weight: bold; color: #881337; font-size: 10pt;">{asunto}</div>
-                        </div>
-                    </td>
-                </tr>
+                <tbody style="page-break-inside: avoid;">
+                    <tr>
+                        <td colspan="2" class="td-center">
+                            <div class="center-line-bg"></div><div class="dot-hito"></div>
+                            <div class="card card-hito">
+                                <span class="tag tag-hito">HITO CONTRACTUAL</span><span class="fecha">{c['FECHA_STR']}</span>
+                                <div class="asunto" style="font-weight: bold; color: #881337; font-size: 10pt;">{asunto}</div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
                 """
             elif es_enviada:
                 filas_html += f"""
-                <tr style="page-break-inside: avoid;">
-                    <td class="td-left">
-                        <div class="dot dot-enviada"></div>
-                        <div class="card card-enviada">
-                            <span class="tag tag-enviada">ENVIADA</span><span class="fecha">{c['FECHA_STR']}</span>
-                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
-                        </div>
-                    </td>
-                    <td class="td-right"></td>
-                </tr>
+                <tbody style="page-break-inside: avoid;">
+                    <tr>
+                        <td class="td-left">
+                            <div class="dot dot-enviada"></div>
+                            <div class="card card-enviada">
+                                <span class="tag tag-enviada">ENVIADA</span><span class="fecha">{c['FECHA_STR']}</span>
+                                <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
+                            </div>
+                        </td>
+                        <td class="td-right"></td>
+                    </tr>
+                </tbody>
                 """
             else:
                 filas_html += f"""
-                <tr style="page-break-inside: avoid;">
-                    <td class="td-left"></td>
-                    <td class="td-right">
-                        <div class="dot dot-recibida"></div>
-                        <div class="card card-recibida">
-                            <span class="tag tag-recibida">RECIBIDA</span><span class="fecha">{c['FECHA_STR']}</span>
-                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
-                        </div>
-                    </td>
-                </tr>
+                <tbody style="page-break-inside: avoid;">
+                    <tr>
+                        <td class="td-left"></td>
+                        <td class="td-right">
+                            <div class="dot dot-recibida"></div>
+                            <div class="card card-recibida">
+                                <span class="tag tag-recibida">RECIBIDA</span><span class="fecha">{c['FECHA_STR']}</span>
+                                <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
                 """
 
-        # 3. Ensamblar el HTML con una ÚNICA TABLA (Evita que el servidor colapse)
+        # 3. Ensamblar el HTML general
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
@@ -190,7 +196,6 @@ def generar_reporte_pdf(
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: #F9FAFB; }}
             .timeline-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
             
-            /* Esta clase fuerza a que el encabezado se repita en cada página impresa */
             thead {{ display: table-header-group; }}
             
             .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; text-align: left; }}
@@ -202,11 +207,13 @@ def generar_reporte_pdf(
             .card-enviada {{ background-color: #EFF6FF; border: 1px solid #BFDBFE; text-align: right; }}
             .card-recibida {{ background-color: #FFFBEB; border: 1px solid #FDE68A; text-align: left; }}
             .card-hito {{ background-color: #FFF1F2; border: 1px solid #FCA5A5; border-left: 4px solid #9F1239; text-align: left; display: inline-block; width: 75%; margin: 0 auto; }}
+            
             .tag {{ font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }}
             .tag-enviada {{ color: #1E3A8A; }} .tag-recibida {{ color: #D97706; }} .tag-hito {{ color: #9F1239; }}
             .fecha {{ font-size: 8.5pt; color: #6B7280; font-weight: 500; margin-bottom: 6px; display: block; }}
             .nro-doc {{ font-size: 9.5pt; font-weight: bold; color: #111827; margin-bottom: 4px; }}
             .asunto {{ font-size: 8.5pt; color: #4B5563; line-height: 1.3; }}
+            
             .td-left {{ width: 50%; padding: 8px 25px 15px 0; vertical-align: top; border-right: 2px solid #E5E7EB; position: relative; }}
             .td-right {{ width: 50%; padding: 8px 0 15px 25px; vertical-align: top; position: relative; }}
             .dot {{ position: absolute; top: 20px; width: 12px; height: 12px; border: 2px solid white; z-index: 5; }}
@@ -217,7 +224,6 @@ def generar_reporte_pdf(
             .dot-hito {{ position: relative; z-index: 5; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; margin: 0 auto 10px auto; transform: rotate(45deg); }}
         </style></head><body>
         
-        <!-- UNA SOLA TABLA PARA TODO -->
         <table class="timeline-table">
             <thead>
                 <tr>
@@ -229,15 +235,14 @@ def generar_reporte_pdf(
                     </th>
                 </tr>
             </thead>
-            <tbody>
-                {filas_html}
-            </tbody>
+            <!-- El string de filas_html ahora inyecta directamente bloques TBODY independientes -->
+            {filas_html}
         </table>
         
         </body></html>
         """
 
-        # 4. Generar y devolver el PDF (Opciones simples y seguras)
+        # 4. Generar y devolver el PDF
         options = {
             'page-size': 'A4',
             'margin-top': '10mm',

@@ -132,7 +132,7 @@ def generar_reporte_pdf(
         df['FECHA_STR'] = pd.to_datetime(df['FECHA_DOC']).dt.strftime('%d/%m/%Y')
         cartas = df.to_dict(orient="records")
 
-        # 1. Construir las filas blindadas (sin cortes)
+        # 1. Filas usando BLOQUES BLINDADOS (Inmunes al corte de página)
         filas_html = ""
         for i, c in enumerate(cartas):
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
@@ -186,13 +186,31 @@ def generar_reporte_pdf(
                 </div>
                 """
 
-        # 2. HTML Maestro (El cuerpo)
+        # 2. HTML Maestro: Mezcla del Encabezado Flotante y la Tabla Fantasma
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
             *, *::before, *::after {{ box-sizing: border-box; }}
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: #F9FAFB; }}
             
+            /* TRUCO 1: ENCABEZADO FIJO (Imprime en todas las hojas automáticamente) */
+            .fixed-header {{
+                position: fixed;
+                top: 0; left: 0; width: 100%; height: 85px;
+                background-color: #1E293B; color: #F8FAFC;
+                padding: 15px 20px; border-radius: 6px;
+                z-index: 9999; text-align: left;
+            }}
+            .fixed-header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
+            .fixed-header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
+            .fixed-header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
+            
+            /* TRUCO 2: TABLA FANTASMA (Evita que el texto choque con el encabezado) */
+            .ghost-table {{ width: 100%; border-collapse: collapse; border: none; }}
+            .ghost-table thead {{ display: table-header-group; }}
+            .spacer {{ height: 110px; border: none; padding: 0; margin: 0; }}
+            
+            /* ESTILOS DE BLOQUES INQUEBRANTABLES */
             .item {{ page-break-inside: avoid !important; break-inside: avoid !important; position: relative; width: 100%; display: block; clear: both; min-height: 60px; }}
             .item::after {{ content: ""; display: table; clear: both; }}
             
@@ -219,59 +237,41 @@ def generar_reporte_pdf(
             .dot-hito {{ margin: 0 auto 10px auto; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; transform: rotate(45deg); display: block; position: relative; z-index: 5; }}
         </style></head><body>
         
-        <div style="position: relative; width: 100%;">
-            {filas_html}
+        <!-- EL ENCABEZADO FLOTANTE -->
+        <div class="fixed-header">
+            <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
+            <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
         </div>
+        
+        <!-- LA ESTRUCTURA INQUEBRANTABLE -->
+        <table class="ghost-table">
+            <thead>
+                <tr><th class="spacer"></th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 0; border: none;">
+                        {filas_html}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
         
         </body></html>
         """
 
-        # 3. HTML del Encabezado (Inyectado en cada hoja)
-        html_header = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <style>
-                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: transparent; }}
-                .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; width: 100%; box-sizing: border-box; }}
-                .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
-                .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
-                .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
-            </style>
-        </head>
-        <body style="border:0; margin: 0;">
-            <div class="header">
-                <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
-                <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
-            </div>
-        </body>
-        </html>
-        """
-
-        # 4. Crear archivo temporal seguro para que Linux lo lea sin problemas
-        fd, header_path = tempfile.mkstemp(suffix=".html")
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            f.write(html_header)
-
-        # 5. Opciones del PDF (Añadiendo el margen superior y la ruta con file:///)
+        # 3. Opciones seguras sin depender de comandos bloqueados del servidor
         options = {
             'page-size': 'A4',
-            'margin-top': '35mm', # Espacio gigante para que el encabezado entre sin pisar las tarjetas
+            'margin-top': '10mm',
             'margin-right': '15mm',
-            'margin-bottom': '15mm',
+            'margin-bottom': '10mm',
             'margin-left': '15mm',
             'encoding': "UTF-8",
-            'no-outline': None,
-            'header-html': f'file:///{header_path}', # Protocolo estricto para servidores Linux
-            'header-spacing': '5',
-            'enable-local-file-access': ''
+            'no-outline': None
         }
 
         pdf_bytes = pdfkit.from_string(html_completo, False, options=options)
-        
-        # 6. Limpieza: Borramos el archivo temporal
-        os.remove(header_path)
         
         return StreamingResponse(
             io.BytesIO(pdf_bytes),

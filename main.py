@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from fastapi.responses import StreamingResponse
 import io
 import pdfkit
+import tempfile
+
 
 # 1. Cargar variables de entorno ocultas
 load_dotenv()
@@ -130,7 +132,7 @@ def generar_reporte_pdf(
         df['FECHA_STR'] = pd.to_datetime(df['FECHA_DOC']).dt.strftime('%d/%m/%Y')
         cartas = df.to_dict(orient="records")
 
-        # 2. Arquitectura de Bloques (Cero tablas, cero cortes)
+        # 1. Construir las filas blindadas (sin cortes)
         filas_html = ""
         for i, c in enumerate(cartas):
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
@@ -184,23 +186,16 @@ def generar_reporte_pdf(
                 </div>
                 """
 
-        # 3. HTML Maestro con reglas estrictas de paginación
+        # 2. HTML Maestro (El cuerpo)
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
             *, *::before, *::after {{ box-sizing: border-box; }}
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: #F9FAFB; }}
             
-            .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; text-align: left; margin-bottom: 30px; }}
-            .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
-            .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
-            .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
-            
-            /* REGLA DE ORO PARA EVITAR CORTES DE PÁGINA */
             .item {{ page-break-inside: avoid !important; break-inside: avoid !important; position: relative; width: 100%; display: block; clear: both; min-height: 60px; }}
             .item::after {{ content: ""; display: table; clear: both; }}
             
-            /* Línea central construida bloque a bloque */
             .line {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; z-index: 1; }}
             
             .left-col {{ width: 50%; float: left; padding-right: 35px; padding-bottom: 20px; position: relative; }}
@@ -224,11 +219,6 @@ def generar_reporte_pdf(
             .dot-hito {{ margin: 0 auto 10px auto; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; transform: rotate(45deg); display: block; position: relative; z-index: 5; }}
         </style></head><body>
         
-        <div class="header">
-            <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
-            <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
-        </div>
-        
         <div style="position: relative; width: 100%;">
             {filas_html}
         </div>
@@ -236,17 +226,52 @@ def generar_reporte_pdf(
         </body></html>
         """
 
+        # 3. HTML del Encabezado (Inyectado en cada hoja)
+        html_header = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: transparent; }}
+                .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; width: 100%; box-sizing: border-box; }}
+                .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
+                .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
+                .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
+            </style>
+        </head>
+        <body style="border:0; margin: 0;">
+            <div class="header">
+                <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
+                <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
+            </div>
+        </body>
+        </html>
+        """
+
+        # 4. Crear archivo temporal seguro para que Linux lo lea sin problemas
+        fd, header_path = tempfile.mkstemp(suffix=".html")
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(html_header)
+
+        # 5. Opciones del PDF (Añadiendo el margen superior y la ruta con file:///)
         options = {
             'page-size': 'A4',
-            'margin-top': '15mm',
+            'margin-top': '35mm', # Espacio gigante para que el encabezado entre sin pisar las tarjetas
             'margin-right': '15mm',
             'margin-bottom': '15mm',
             'margin-left': '15mm',
             'encoding': "UTF-8",
-            'no-outline': None
+            'no-outline': None,
+            'header-html': f'file:///{header_path}', # Protocolo estricto para servidores Linux
+            'header-spacing': '5',
+            'enable-local-file-access': ''
         }
 
         pdf_bytes = pdfkit.from_string(html_completo, False, options=options)
+        
+        # 6. Limpieza: Borramos el archivo temporal
+        os.remove(header_path)
         
         return StreamingResponse(
             io.BytesIO(pdf_bytes),

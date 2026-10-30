@@ -117,7 +117,6 @@ def generar_reporte_pdf(
     entregable: str = Query("Segundo Informe")
 ):
     try:
-        # 1. Conexión segura para evitar el error de base de datos
         with engine.connect() as conn:
             df = pd.read_sql('SELECT * FROM control_documentario ORDER BY "FECHA_DOC" DESC', conn)
             
@@ -131,17 +130,14 @@ def generar_reporte_pdf(
         df['FECHA_STR'] = pd.to_datetime(df['FECHA_DOC']).dt.strftime('%d/%m/%Y')
         cartas = df.to_dict(orient="records")
 
-        # 2. Arquitectura blindada: Mini-tablas dentro de contenedores inquebrables
+        # 2. Arquitectura de Bloques (Cero tablas, cero cortes)
         filas_html = ""
-        total_cartas = len(cartas)
-        
         for i, c in enumerate(cartas):
             es_enviada = 'ENV' in str(c.get('ORIGEN_DOC', '')).upper()
             es_hito = 'HITO' in str(c.get('TIPO_EVENTO', '')).upper()
-            es_ultimo = (i == total_cartas - 1)
+            es_ultimo = (i == len(cartas) - 1)
             
-            # Si es el último registro, borramos la línea para que no caiga al vacío
-            color_borde = "transparent" if es_ultimo else "#E5E7EB"
+            borde = "transparent" if es_ultimo else "#E5E7EB"
             
             nro_doc = str(c.get('NRO_DOC', ''))
             if nro_doc.lower() in ['none', 'nan', '']: nro_doc = ""
@@ -149,90 +145,72 @@ def generar_reporte_pdf(
             if asunto.lower() in ['none', 'nan']: asunto = ""
 
             if es_hito:
-                linea_fondo = "" if es_ultimo else '<div class="center-line-bg"></div>'
                 filas_html += f"""
-                <tr>
-                    <td style="padding: 0; border: none;">
-                        <div style="page-break-inside: avoid; break-inside: avoid; width: 100%;">
-                            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                                <tr>
-                                    <td colspan="2" class="td-center">
-                                        {linea_fondo}
-                                        <div class="dot-hito"></div>
-                                        <div class="card card-hito">
-                                            <span class="tag tag-hito">HITO CONTRACTUAL</span><span class="fecha">{c['FECHA_STR']}</span>
-                                            <div class="asunto" style="font-weight: bold; color: #881337; font-size: 10pt;">{asunto}</div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
+                <div class="item">
+                    <div class="line" style="background-color: {borde};"></div>
+                    <div class="center-content">
+                        <div class="dot-hito"></div>
+                        <div class="card card-hito">
+                            <span class="tag tag-hito">HITO CONTRACTUAL</span><span class="fecha">{c['FECHA_STR']}</span>
+                            <div class="asunto" style="font-weight: bold; color: #881337; font-size: 10pt;">{asunto}</div>
                         </div>
-                    </td>
-                </tr>
+                    </div>
+                </div>
                 """
             elif es_enviada:
                 filas_html += f"""
-                <tr>
-                    <td style="padding: 0; border: none;">
-                        <div style="page-break-inside: avoid; break-inside: avoid; width: 100%;">
-                            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                                <tr>
-                                    <td class="td-left" style="border-right: 2px solid {color_borde};">
-                                        <div class="dot dot-enviada"></div>
-                                        <div class="card card-enviada">
-                                            <span class="tag tag-enviada">ENVIADA</span><span class="fecha">{c['FECHA_STR']}</span>
-                                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
-                                        </div>
-                                    </td>
-                                    <td class="td-right"></td>
-                                </tr>
-                            </table>
+                <div class="item">
+                    <div class="line" style="background-color: {borde};"></div>
+                    <div class="left-col">
+                        <div class="dot dot-enviada"></div>
+                        <div class="card card-enviada">
+                            <span class="tag tag-enviada">ENVIADA</span><span class="fecha">{c['FECHA_STR']}</span>
+                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
                         </div>
-                    </td>
-                </tr>
+                    </div>
+                </div>
                 """
             else:
                 filas_html += f"""
-                <tr>
-                    <td style="padding: 0; border: none;">
-                        <div style="page-break-inside: avoid; break-inside: avoid; width: 100%;">
-                            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                                <tr>
-                                    <td class="td-left" style="border-right: 2px solid {color_borde};">
-                                        <div class="dot dot-recibida"></div>
-                                    </td>
-                                    <td class="td-right">
-                                        <div class="card card-recibida">
-                                            <span class="tag tag-recibida">RECIBIDA</span><span class="fecha">{c['FECHA_STR']}</span>
-                                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
+                <div class="item">
+                    <div class="line" style="background-color: {borde};"></div>
+                    <div class="right-col">
+                        <div class="dot dot-recibida"></div>
+                        <div class="card card-recibida">
+                            <span class="tag tag-recibida">RECIBIDA</span><span class="fecha">{c['FECHA_STR']}</span>
+                            <div class="nro-doc">{nro_doc}</div><div class="asunto">{asunto}</div>
                         </div>
-                    </td>
-                </tr>
+                    </div>
+                </div>
                 """
 
-        # 3. Ensamblar HTML Maestro
+        # 3. HTML Maestro con reglas estrictas de paginación
         html_completo = f"""
         <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <style>
             *, *::before, *::after {{ box-sizing: border-box; }}
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #111827; background-color: #F9FAFB; }}
             
-            .main-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
-            thead {{ display: table-header-group; }}
-            
-            .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; text-align: left; margin-bottom: 20px; }}
+            .header {{ background-color: #1E293B; color: #F8FAFC; padding: 15px 20px; border-radius: 6px; text-align: left; margin-bottom: 30px; }}
             .header h1 {{ margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }}
             .header h1 span {{ color: #94A3B8; font-weight: normal; font-size: 12pt; }}
             .header h2 {{ margin: 6px 0 0 0; font-size: 10pt; color: #CBD5E1; text-transform: uppercase; letter-spacing: 1px; }}
             
+            /* REGLA DE ORO PARA EVITAR CORTES DE PÁGINA */
+            .item {{ page-break-inside: avoid !important; break-inside: avoid !important; position: relative; width: 100%; display: block; clear: both; min-height: 60px; }}
+            .item::after {{ content: ""; display: table; clear: both; }}
+            
+            /* Línea central construida bloque a bloque */
+            .line {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; z-index: 1; }}
+            
+            .left-col {{ width: 50%; float: left; padding-right: 35px; padding-bottom: 20px; position: relative; }}
+            .right-col {{ width: 50%; float: right; padding-left: 35px; padding-bottom: 20px; position: relative; }}
+            .center-content {{ width: 100%; clear: both; padding-bottom: 20px; text-align: center; position: relative; z-index: 10; }}
+            
             .card {{ border-radius: 6px; padding: 12px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 100%; position: relative; z-index: 2; }}
             .card-enviada {{ background-color: #EFF6FF; border: 1px solid #BFDBFE; text-align: right; }}
             .card-recibida {{ background-color: #FFFBEB; border: 1px solid #FDE68A; text-align: left; }}
-            .card-hito {{ background-color: #FFF1F2; border: 1px solid #FCA5A5; border-left: 4px solid #9F1239; text-align: left; width: 85%; margin: 0 auto; }}
+            .card-hito {{ background-color: #FFF1F2; border: 1px solid #FCA5A5; border-left: 4px solid #9F1239; text-align: left; display: inline-block; width: 75%; margin: 0 auto; }}
             
             .tag {{ font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }}
             .tag-enviada {{ color: #1E3A8A; }} .tag-recibida {{ color: #D97706; }} .tag-hito {{ color: #9F1239; }}
@@ -240,44 +218,29 @@ def generar_reporte_pdf(
             .nro-doc {{ font-size: 9.5pt; font-weight: bold; color: #111827; margin-bottom: 4px; }}
             .asunto {{ font-size: 8.5pt; color: #4B5563; line-height: 1.4; }}
             
-            .td-left {{ width: 50%; padding: 15px 35px 15px 0; vertical-align: top; position: relative; }}
-            .td-right {{ width: 50%; padding: 15px 0 15px 35px; vertical-align: top; position: relative; }}
-            .td-center {{ width: 100%; padding: 25px 0; text-align: center; vertical-align: top; position: relative; }}
-            
-            .dot {{ position: absolute; top: 30px; width: 14px; height: 14px; border: 2px solid white; z-index: 5; }}
-            /* Ambos puntos van anclados al borde de la columna izquierda para una simetría perfecta */
-            .dot-enviada {{ right: -8px; background-color: #1E3A8A; border-radius: 50%; }}
-            .dot-recibida {{ right: -8px; background-color: #D97706; border-radius: 50%; }}
-            
-            .center-line-bg {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background-color: #E5E7EB; margin-left: -1px; z-index: 1; }}
-            .dot-hito {{ position: absolute; left: 50%; top: 30px; margin-left: -7px; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; transform: rotate(45deg); z-index: 5; }}
+            .dot {{ position: absolute; top: 15px; width: 14px; height: 14px; border: 2px solid white; z-index: 5; border-radius: 50%; }}
+            .dot-enviada {{ right: -8px; background-color: #1E3A8A; }}
+            .dot-recibida {{ left: -8px; background-color: #D97706; }}
+            .dot-hito {{ margin: 0 auto 10px auto; width: 14px; height: 14px; background-color: #9F1239; border: 2px solid white; transform: rotate(45deg); display: block; position: relative; z-index: 5; }}
         </style></head><body>
         
-        <table class="main-table">
-            <thead>
-                <tr>
-                    <th>
-                        <div class="header">
-                            <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
-                            <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
-                        </div>
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                {filas_html}
-            </tbody>
-        </table>
+        <div class="header">
+            <h1>CHACHAPOYAS <span>/ Control Documentario</span></h1>
+            <h2>Reporte de Línea de Tiempo: {componente} | {entregable}</h2>
+        </div>
+        
+        <div style="position: relative; width: 100%;">
+            {filas_html}
+        </div>
         
         </body></html>
         """
 
-        # 4. Opciones simples y seguras para pdfkit
         options = {
             'page-size': 'A4',
-            'margin-top': '12mm',
+            'margin-top': '15mm',
             'margin-right': '15mm',
-            'margin-bottom': '12mm',
+            'margin-bottom': '15mm',
             'margin-left': '15mm',
             'encoding': "UTF-8",
             'no-outline': None
